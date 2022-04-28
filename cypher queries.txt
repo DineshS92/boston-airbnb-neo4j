@@ -1,0 +1,55 @@
+// Which listings are available for 2 or less than 2 days? As per the query "MATCH (d:Date) RETURN COUNT(d)" there are 365 dates in the graph db. Also, display hosts.
+
+MATCH (h:Host)-[:MANAGES]->(l:Listing)-[av:IS_AVAILABLE]->(d:Date)
+WHERE av.price <> 0
+WITH h, l, COUNT(d) as num_dates
+WHERE num_dates <= 2
+// Returns tabular data
+// RETURN l.name, num_dates
+// Returns Listings nodes
+RETURN h, l
+
+
+// Get Users who have lived in Shared rooms with a review score of more than 90
+
+MATCH (u:User)--(r:Review)--(l:Listing)
+WHERE l.review_score > 90 AND l.room_type = "Shared room"
+// Returns tabular data
+RETURN u.userName, l.review_score, l.room_type
+// Return User nodes
+// RETURN u
+
+
+// Simple Text Mining for positive review (There are about 68k reviews)
+
+// Returns the review if it has one or more words from the list ["friendly", "kind", "happy"]
+WITH ["friendly", "kind", "happy"] as positive_words
+MATCH (r:Review)
+WHERE ANY(word in positive_words WHERE r.review contains word)
+RETURN r
+
+// Returns the review only if it has all the words in the list ["friendly", "kind", "happy"]
+WITH ["friendly", "kind", "happy"] as positive_words
+MATCH (r:Review)
+WHERE ALL(word in positive_words WHERE r.review contains word)
+RETURN r
+
+
+// Which host(s) manage more than 50 listings?
+
+MATCH (h:Host)-[:MANAGES]->(l:Listing)
+WITH h, COUNT(l) as listings
+WHERE listings >= 50
+RETURN h
+
+
+// Which host(s) has more than 20 listings available precisely on 25 April 2017?
+
+MATCH (h:Host)--(l:Listing)--(d:Date)
+WHERE DateTime(d.date)=DateTime({year:2017, month:04, day:25})
+WITH h, d, COUNT(l) as listings
+WHERE listings > 20
+// Returns tabular data
+RETURN h.name, d.date, listings
+// Returns Host nodes
+// RETURN h
