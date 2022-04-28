@@ -24,29 +24,29 @@ CREATE CONSTRAINT UniqueHost ON (h:Host) ASSERT h.hostId IS UNIQUE
 Next, we create the graph by importing and reading data from the cleaned csv files. The cleaning process involved activities like removing currency symbols from price-related columns.
 
 // Create all dates nodes
-LOAD CSV WITH HEADERS FROM 'https://csvtoneo4jstore.blob.core.windows.net/boston-airbnb-final/final/calendar_final.csv' AS row
+LOAD CSV WITH HEADERS FROM 'https://raw.githubusercontent.com/DineshS92/boston-airbnb-neo4j/main/data/calendar_final.csv' AS row
   WITH datetime(split(row.date, ' ')[0]) AS date
   MERGE (d:Date {date: date})
 
 // Create all User nodes
-LOAD CSV WITH HEADERS FROM 'https://csvtoneo4jstore.blob.core.windows.net/boston-airbnb-final/final/reviews_final.csv' AS row
+LOAD CSV WITH HEADERS FROM 'https://raw.githubusercontent.com/DineshS92/boston-airbnb-neo4j/main/data/reviews_final.csv' AS row
   WITH row.reviewer_id AS userId, row.reviewer_name AS userName
   MERGE (u:User {userId: userId})
     SET u.userName = userName
 
 // Create all Review nodes
-LOAD CSV WITH HEADERS FROM 'https://csvtoneo4jstore.blob.core.windows.net/boston-airbnb-final/final/reviews_final.csv' AS row
+LOAD CSV WITH HEADERS FROM 'https://raw.githubusercontent.com/DineshS92/boston-airbnb-neo4j/main/data/reviews_final.csv' AS row
   WITH row.id AS reviewId, split(row.date, ' ')[0] AS reviewDate, row.comments as reviewText
   MERGE (r:Review {reviewId: reviewId})
     SET r.date = reviewDate, r.review = reviewText
 
 // Create Listing nodes, but this query will only have listing ids in the nodes. Next query updates these listing nodes with all listings data
-LOAD CSV WITH HEADERS FROM 'https://csvtoneo4jstore.blob.core.windows.net/boston-airbnb-final/final/calendar_final.csv' AS row
+LOAD CSV WITH HEADERS FROM 'https://raw.githubusercontent.com/DineshS92/boston-airbnb-neo4j/main/data/calendar_final.csv' AS row
   WITH row.listing_id AS listing_id
   MERGE (ls:Listing {listing_id: listing_id});
 
 // Update listing nodes to get all data. There was some manual effort involved here because the listing nodes related columns had to be manually picked from 95 columns.
-LOAD CSV WITH HEADERS FROM 'https://csvtoneo4jstore.blob.core.windows.net/boston-airbnb-final/final/listings_final.csv' AS row
+LOAD CSV WITH HEADERS FROM 'https://raw.githubusercontent.com/DineshS92/boston-airbnb-neo4j/main/data/listings_final.csv' AS row
   WITH row.id AS listing_id, row.listing_url AS url, row.name AS name, row.summary AS summary, row.street AS street, row.zipcode AS zipcode,
   toFloat(row.latitude) AS latitude, toFloat(row.longitude) AS longitude, row.property_type AS propertyType, row.room_type AS roomType,
   toInteger(row.accommodates) AS accommodates, toFloat(row.bathrooms) AS bathrooms, toInteger(row.bedrooms) AS bedrooms, toInteger(row.beds) AS beds,
@@ -60,7 +60,7 @@ LOAD CSV WITH HEADERS FROM 'https://csvtoneo4jstore.blob.core.windows.net/boston
    ls.extra_person_charge=extraPeople, ls.min_nights=minNights, ls.max_nights=maxNights, ls.review_score=reviewScore
 
 // Create all Host nodes
-LOAD CSV WITH HEADERS FROM 'https://csvtoneo4jstore.blob.core.windows.net/boston-airbnb-final/final/listings_final.csv' AS row
+LOAD CSV WITH HEADERS FROM 'https://raw.githubusercontent.com/DineshS92/boston-airbnb-neo4j/main/data/listings_final.csv' AS row
   WITH row.host_id AS hostId, row.host_url AS hostURL, row.host_name AS name, row.host_since as hostSince, row.host_location AS location,
   row.host_about AS about, row.host_response_time AS responseTime, row.host_response_rate as responseRate, row.host_acceptance_rate as acceptanceRate,
   row.host_is_superhost AS isSuperhost, split(row.host_verifications, ',') AS verifications, row.host_identity_verified as identityVerified
@@ -75,22 +75,22 @@ LOAD CSV WITH HEADERS FROM 'https://csvtoneo4jstore.blob.core.windows.net/boston
 Finally, we establish relationships between the newly created nodes
 
 // User WRITES Reviews
-LOAD CSV WITH HEADERS FROM 'https://csvtoneo4jstore.blob.core.windows.net/boston-airbnb-final/final/reviews_final.csv' AS row
+LOAD CSV WITH HEADERS FROM 'https://raw.githubusercontent.com/DineshS92/boston-airbnb-neo4j/main/data/reviews_final.csv' AS row
   MATCH (u:User {userId: row.reviewer_id}), (r:Review {reviewId: row.id})
   MERGE (u)-[:WRITES]->(r)
 
 // Listing IS AVAILABLE on Dates at Price. Price here is the property of the relationship.
-LOAD CSV WITH HEADERS FROM 'https://csvtoneo4jstore.blob.core.windows.net/boston-airbnb-final/final/calendar_final.csv' AS row
+LOAD CSV WITH HEADERS FROM 'https://raw.githubusercontent.com/DineshS92/boston-airbnb-neo4j/main/data/calendar_final.csv' AS row
   WITH row.listing_id AS listing_id, datetime(split(row.date, ' ')[0]) AS date, row.available AS available, row.price as price
   MATCH (ls:Listing {listing_id: listing_id}), (d:Date {date: date}) WHERE available='t' 
   MERGE (ls)-[:IS_AVAILABLE {price: price}]->(d);
 
 // Next we connect the Reviews to the listings. Reviews BELONG TO Listing
-LOAD CSV WITH HEADERS FROM 'https://csvtoneo4jstore.blob.core.windows.net/boston-airbnb-final/final/reviews_final.csv' AS row
+LOAD CSV WITH HEADERS FROM 'https://raw.githubusercontent.com/DineshS92/boston-airbnb-neo4j/main/data/reviews_final.csv' AS row
   MATCH (ls:Listing {listing_id: row.listing_id}), (r:Review {reviewId: row.id})
   MERGE (r)-[:BELONGS_TO]->(ls)
 
 // Finally, Host MANAGES Listings
-LOAD CSV WITH HEADERS FROM 'https://csvtoneo4jstore.blob.core.windows.net/boston-airbnb-final/final/listings_final.csv' AS row
+LOAD CSV WITH HEADERS FROM 'https://raw.githubusercontent.com/DineshS92/boston-airbnb-neo4j/main/data/listings_final.csv' AS row
   MATCH (h:Host {hostId: row.host_id}), (ls:Listing {listing_id: row.id})
   MERGE (h)-[:MANAGES]->(ls)
